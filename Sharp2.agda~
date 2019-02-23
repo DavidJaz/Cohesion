@@ -1,0 +1,391 @@
+{-# OPTIONS --without-K --rewriting #-}
+
+module Sharp2 where
+  open import Basics
+  open import Flat
+
+  open import lib.Equivalence2
+
+
+  postulate
+    -- Here, I've tried to implement the rules for ♯ as in Shulman as closely as possible
+    -- to the sequents in Figure 3 of Section 3.
+
+    {-
+       If one has a crisp context Γ and a type A which depends crisply on Γ,
+       Then one may form ♯ A which depends cohesively on Γ.
+
+       Or, read backwards, to construct ♯ A in the context Γ, it suffices to assume
+       That every variable x : Γ appearing in A is crisp.
+
+       Δ, Γ | ∙ ⊢ A : Type
+       -------------------
+       Δ | Γ  ⊢ ♯ A : Type
+    -}
+
+    {-
+      Ok, so the problem I'm having is that when you use ♯' on different Γ, 
+      agda thinks they're different, when they should be the "same but with substitution".
+
+        eg if do ♯' (λ _ → B) for arbitrary Γ, and apply this to b : B, 
+        this should give me the same as ♯' (λ {unit → B}) unit where Γ ≡ ⊤. 
+
+      So let me try and add that in. (lo, the spectre of coherence haunts)
+
+      So I couldn't make heads or tails... here's another try
+
+      We introduce a unary type operator ♯ as Licata does, but then relate it to ♯'
+
+      The general form now takes that we have operation O naively and then operation O' which
+      takes in a context but then uncrisps the variation in this context.
+
+      We relate them by the natural rewrite rule which says that on a crisp element of the syntax,
+      The `ptwise' operation O' "computes to" the ptwise operation of O.
+    -}
+    ♯ : {i : ULevel} → Type i → Type i
+
+    ♯-ptwise : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+               (A : Γ ::→ Type j)
+               → (Γ → Type j)
+  syntax ♯-ptwise (λ γ → A) ctx = let♯ γ ::= ctx in♯-♯ A
+
+  postulate
+    ♯-law : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+             (A : Γ ::→ Type j) (x :{♭} Γ)
+             → (♯-ptwise A) x ↦ ♯ (A x)
+    {-# REWRITE ♯-law #-}
+    
+    {-
+      If one has a : A in a crisp context Γ, 
+      one may form a ^♯ : ♯ A in the cohesive context Γ.
+
+      Δ, Γ | ∙ ⊢ a : A
+      -------------------
+      Δ | Γ ⊢ a ^♯ : ♯ A
+    -}
+    ^♯-ptwise : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+                {A : Γ ::→ Type j} (a : (x :{♭} Γ) → A x)
+                → (x : Γ) → (♯-ptwise A) x
+  syntax ^♯-ptwise (λ γ → a) ctx = let♯ γ ::= ctx in♯ a ^^♯
+
+  ^♯-ptwise-explicit : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+                       (A : Γ ::→ Type j) (a : (x :{♭} Γ) → A x)
+                       → (x : Γ) → (♯-ptwise A) x
+  ^♯-ptwise-explicit A = ^♯-ptwise {A = A}
+  syntax ^♯-ptwise-explicit A (λ γ → t) ctx = let♯ γ ::= ctx in♯ t ^^♯-in-family A
+
+  postulate
+    _^♯ : {i : ULevel} {A : Type i} → A → ♯ A
+
+    ^♯-law : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+              {A : Γ ::→ Type j} (a : (x :{♭} Γ) → A x)
+              (x :{♭} Γ) → (^♯-ptwise a) x ↦ ((a x) ^♯)
+    {-# REWRITE ^♯-law #-}
+
+    {-
+    _↑♯ : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+          {A : Γ ::→ Type j} (a : (x :{♭} Γ) → A x)
+          → (x :{♭} Γ) → (♯ A) x -}
+
+    {-
+      If one has a :: ♯ A in a crisp context Γ, one may form a ↓♯ : A, also in a crisp context Γ
+
+      Δ | ∙ ⊢ a : ♯ A
+      ---------------
+      Δ | Γ ⊢ a ↓♯ : A
+
+      It seems to me that to have a crisp variable of ♯ A requires A to be crisp...
+      But the pointwise one doesn't just that the context is crisp?
+    -}
+    ↓♯-ptwise : {i :{♭} ULevel} {Δ :{♭} Type i} {j :{♭} ULevel} {A :{♭} Δ ::→ Type j}
+                (a :{♭} (x :{♭} Δ) → (♯-ptwise A) x)
+                → (x :{♭} Δ) → A x
+  syntax ↓♯-ptwise (λ γ → a) ctx = let♯ γ ::= ctx in♯ a ↓↓♯
+
+  postulate
+    _↓♯ : {i :{♭} ULevel} {A :{♭} Type i} → ♯ A ::→ A
+
+    ↓♯-law : {i :{♭} ULevel} {Δ :{♭} Type i} {j :{♭} ULevel} {A :{♭} Δ ::→ Type j}
+              (a :{♭} (x :{♭} Δ) → (♯-ptwise A) x)
+              (x :{♭} Δ) → (↓♯-ptwise a) x ↦ ((a x) ↓♯)
+    {-# REWRITE ↓♯-law #-}
+
+    {-
+      Given a :: A, we have that (a ^♯) ↓♯ ≡ a.
+
+      Δ | ∙ ⊢ a : A
+      -------------------------
+      Δ | Γ ⊢ (a ^♯) ↓♯ ≡ a : A
+
+      A and a are crisp, but we can have any other context Γ appear
+      which is fine, we just don't mention it.
+    -}
+    ^↓♯ : {i :{♭} ULevel} {A :{♭} Type i} (a :{♭} A)
+          → ((a ^♯) ↓♯) ↦ a
+    {-# REWRITE ^↓♯ #-}
+
+
+    {-
+      Given a : ♯ A in any context, we have (a ↓♯) ^♯ ≡ a
+
+      Δ | Γ ⊢ a : ♯ A
+      ---------------
+      Δ | Γ ⊢ (a ↓♯) ^♯ ≡ a : ♯ A
+
+      Here we can do this in any context, but for agda that might mean
+      "factoring through" the ptwise operations first...
+
+      [WARNING] This implementation needs A to be crisp!
+    -}
+    ↓^♯ : {i :{♭} ULevel} {A :{♭} Type i} (a :{♭} ♯ A)
+          → ((a ↓♯) ^♯) ↦ a
+    {-# REWRITE ↓^♯ #-}      
+
+  
+
+  -- We have to leave the universe levels out and assume they are crisp,
+  -- otherwise the "context record" becomes large.
+  -- It shouldn't matter tho, since ULevel is discrete.
+  module _ {i j :{♭} ULevel} where
+    private 
+      record Γ : Type (lsucc (lmax i j)) where
+        constructor ctx
+        field
+          ᶜA   : Type i
+          ᶜB   : Type j
+          ᶜf   : ᶜA → ᶜB
+          ᶜa   : ♯ ᶜA
+      open Γ
+
+    -- Functoriality of ♯
+    ♯→ : {A : Type i} {B : Type j}
+       (f : A → B) → (♯ A) → (♯ B)
+    ♯→ {A} {B} f a =
+      let♯ γ ::= (ctx A B f a) in♯
+        (ᶜf γ (ᶜa γ ↓♯)) ^^♯ -- (f (a ↓♯)) ^♯
+
+    -- The naturality square of the unit (judgemental!)
+    ♯→-nat : {A : Type i} {B : Type j} (f : A → B)
+             (a : A) → ((f a) ^♯) == ((♯→ f) (a ^♯))
+    ♯→-nat {A} {B} f a = refl
+
+  -- ♯-elmination (Shulman Theorem 3.4)
+  {-
+    The general form of these definitions is:
+    Take the context (or the part of the context) you want to make crisp,
+    and make a private record Γ with fields ᶜx for every variable x in the context.
+    Then use the let♯ notation to crispify in the context.
+  -}
+  module _ {i j :{♭} ULevel} where
+    private
+      record Γ : Type (lsucc (lmax i j)) where
+        constructor ctx
+        field
+          ᶜA : Type i
+          ᶜB : (♯ ᶜA) → Type j
+          ᶜf : (a : ᶜA) → ♯ (ᶜB (a ^♯))
+          ᶜa : ♯ ᶜA
+      open Γ
+      
+    ♯-elim : {A : Type i} (B : ♯ A → Type j)
+             (f : (a : A) → ♯ (B (a ^♯)))
+             → ((a : ♯ A) → ♯ (B a))
+    ♯-elim {A} B f a =
+      let♯ γ ::= (ctx A B f a) in♯
+        (ᶜf γ (ᶜa γ ↓♯)) ↓♯ ^^♯
+    syntax ♯-elim B (λ x → t) a = let♯ x ^♯:= a in♯ t in-family B
+
+    -- Elimination with implicit family,
+    ♯-elim' : {A : Type i} {B : ♯ A → Type j}
+              (f : (a : A) → ♯ (B (a ^♯)))
+              → ((a : ♯ A) → ♯ (B a))
+    ♯-elim' {A} {B} f a = ♯-elim {A} B f a 
+    syntax ♯-elim' (λ x → t) a = let♯ x ^♯:= a in♯ t
+    
+    -- β holds judgementally :)
+    ♯-elim-β : {A : Type i} {B : ♯ A → Type j}
+               (f : (a : A) → ♯ (B (a ^♯))) (a : A)
+               → (♯-elim B f (a ^♯)) == (f a)
+    ♯-elim-β f a = refl
+
+    -- ♯-elim is inverse to precomposition by _^♯
+    -- This proves that ♯ is a uniquely eliminating modality
+    ♯-universal : {A : Type i} (B : ♯ A → Type j)
+                  → ((a : ♯ A) → ♯ (B a)) ≃ ((a : A) → ♯ (B (a ^♯)))
+    ♯-universal {A} B = equiv to fro to-fro fro-to
+      where
+        to : (f : (a : ♯ A) → ♯ (B a))
+             → (a : A) → ♯ (B (a ^♯))
+        to f = f ∘ _^♯
+
+        fro : ((a : A) → ♯ (B (a ^♯))) → ((a : ♯ A) → ♯ (B a))
+        fro = ♯-elim B
+
+        to-fro : (f : (a : A) → ♯ (B (a ^♯))) → to (fro f) == f
+        to-fro f = refl
+
+        fro-to : (f : (a : ♯ A) → ♯ (B a)) → fro (to f) == f
+        fro-to f = refl
+
+  -- A type is codiscrete if the inclusion a ↦ a ^♯ is an equivalence.
+  _is-codiscrete : {i : ULevel} (A : Type i) → Type i
+  A is-codiscrete = (_^♯ {A = A}) is-an-equiv
+
+  codisc-eq : {i : ULevel} {A : Type i} (p : A is-codiscrete) → A ≃ (♯ A)
+  codisc-eq = _^♯ ,_
+
+  _is-codisc-is-a-prop : {i : ULevel} (A : Type i) → (A is-codiscrete) is-a-prop
+  A is-codisc-is-a-prop = is-equiv-is-prop
+
+  -- Shulman Theorem 3.5
+  -- ♯ A is codiscrete.
+  module _ {i :{♭} ULevel} where
+    private
+      record Γ : Type (lsucc i) where
+        constructor ctx
+        field
+          ᶜA : Type i
+          ᶜa : ♯ (♯ ᶜA)
+      open Γ
+    
+    ♯-is-codiscrete : (A : Type i) → (♯ A) is-codiscrete
+    ♯-is-codiscrete = λ A →  
+      (_^♯ {A = ♯ A}) is-an-equivalence-because fro is-inverse-by to-fro and fro-to
+      where
+        fro : {A : Type i} → ♯ (♯ A) → ♯ A
+        fro {A} a = let♯ γ ::= (ctx A a) in♯ ((ᶜa γ ↓♯) ↓♯) ^^♯ 
+
+        to-fro : {A : Type i} → (a : ♯ (♯ A)) → ((fro a) ^♯) == a
+        to-fro a = refl
+
+        fro-to : {A : Type i} → (a : ♯ A) → fro (a ^♯) == a
+        fro-to a = refl
+
+  Π-codiscrete : {i j : ULevel} {A : Type i} (B : A → Type j)
+                 → ((a : A) → ♯ (B a)) is-codiscrete
+  Π-codiscrete {A = A} B = _^♯ is-an-equivalence-because fro is-inverse-by to-fro and fro-to
+    where
+      fro : (♯ ((a : A) → ♯ (B a))) → ((a : A) → ♯ (B a))
+      fro f a = let♯ g ^♯:= f in♯ (g a)
+  
+      to-fro : ∀ f → ((fro f) ^♯) == f
+      to-fro f = refl
+                 
+      fro-to : ∀ f → fro (f ^♯) == f
+      fro-to f = refl
+
+  module _ {i : ULevel} {A : Type i} (x y : ♯ A) where
+    private
+      constx : ♯ (x == y) → ♯ A
+      constx _ = x
+        
+      consty : ♯ (x == y) → ♯ A
+      consty _ = y
+
+      lemma₀ : (constx ∘ _^♯) == (consty ∘ _^♯)
+      lemma₀ = λ= (λ p → p)
+
+      lemma₁ : constx == consty
+      lemma₁ = -- constx == consty because they are equalized by _^♯, via the universal prop of ♯
+        –>-is-inj (♯-universal (λ (_ : ♯ (x == y)) → A)) constx consty lemma₀
+
+    ♯-=-retract : ♯ (x == y) → x == y
+    ♯-=-retract p = app= lemma₁ p
+
+    -- We follow RSS Lemma 1.25
+  =-is-codiscrete : {i : ULevel} {A : Type i} (x y : ♯ A)
+                    → (x == y) is-codiscrete
+  =-is-codiscrete {A} x y =
+    _ is-an-equivalence-because fro is-inverse-by to-fro and fro-to
+    where
+      fro : ♯ (x == y) → x == y
+      fro = ♯-=-retract x y
+
+      abstract
+        to-fro : (p : ♯ (x == y)) → ((fro p) ^♯) == p
+        to-fro p =
+          (♯-=-retract ((fro p) ^♯) p) -- it suffices to show ♯ ((fro p) ^♯ == p)
+            (let♯ q ^♯:= p in♯ -- let's try ♯-elim, that's a good trick
+              {!((fro (q ^♯)) ^♯)!}
+             in-family (λ p' → ((fro p') ^♯) == p')
+            )
+
+        fro-to : (p : x == y) → fro (p ^♯) == p
+        fro-to refl = {!fro (idp ^♯)!}
+
+  -- Shulman Theorem 3.7
+  module _ {i :{♭} ULevel} where
+    private
+      record Γ : Type (lsucc i) where
+        constructor ctx
+        field
+          ᶜA : Type i
+          ᶜx : ♯ ᶜA
+          ᶜy : ♯ ᶜA
+      open Γ
+
+      code : {A : Type i} → ♯ A → ♯ A → Type i
+      code {A} x y =
+        let♯ γ ::= (ctx A x y) in♯-♯ (((ᶜx γ) ↓♯) == ((ᶜy γ) ↓♯))
+
+      r : {A : Type i} (x : ♯ A) → code x x
+      r {A} x =
+        let♯ γ ::= (ctx A x x) in♯ (idp {A = ᶜA γ} {a = (ᶜx γ) ↓♯}) ^^♯
+       -- for some reason, I can't use refl here, I need idp???
+
+      encode : {A : Type i} (a b : ♯ A) → (a == b) → code a b
+      encode {A} a b p = transport (λ y → code a y) p (r a)
+
+      decode' : {A : Type i} (a b : ♯ A) → ♯ (code a b → (a == b))
+      decode' {A} a b =
+        let♯ u ^♯:= a in♯ -- By ♯-elim, we can assume a and b are of the form
+           let♯ v ^♯:= b in♯ -- u ^♯ and v ^♯, and we'll give
+                             -- code (u ^♯) (v ^♯) → (u ^♯) == (v ^♯).
+              (λ p → ♯-=-retract (u ^♯) (v ^♯) -- Assuming a code p, it suffices to give
+                                               -- ♯ (u ^♯ == v ^♯).
+                 (let♯ q ^♯:= p in♯ ((ap _^♯ q) ^♯)) )  ^♯ -- So, we assume p = q ^♯
+                                                           -- with q : u == v, and then
+                                                           -- push this through the unit.
+            in-family (λ b' → code (u ^♯) b' → (u ^♯) == b')
+         in-family (λ a' → code a' b → a' == b)
+
+      lemma : {A : Type i} (a b : ♯ A)
+              → ♯ (code a b → (a == b))
+              → code a b → (a == b)
+      lemma a b p e =
+        ♯-=-retract a b -- it suffices to show ♯ (a == b)
+          (let♯ q ^♯:= p in♯ ((q e) ^♯)) -- so we can assume p is of the form q ^♯.
+
+      decode : {A : Type i} (a b : ♯ A) → code a b → (a == b)
+      decode {A} a b = -- putting together decode' and the lemma, we get our decode function
+        lemma a b (decode' a b)
+
+      -- [WARNING] I get an error here complaining about A in (a ↓♯) == (b ↓♯)
+      -- encode-decode : {A : Type i} {a b : ♯ A} (p : code a b) → (encode a b (decode a b p)) == p
+      -- encode-decode {A} {a} {b} p = ?
+
+      private -- context for encode-decode'
+        record Δ : Type (lsucc i) where
+          constructor ctx'
+          field
+            ᶜA : Type i
+            ᶜa : ♯ ᶜA
+            ᶜb : ♯ ᶜA
+            ᶜp : code ᶜa ᶜb
+        open Δ
+        {-
+      encode-decode' : {A : Type i} {a b : ♯ A} (p : code a b)
+                       → let♯ γ ::= (ctx' A a b p)
+                         in♯-♯ ((encode (ᶜa γ) (ᶜb γ) (decode (ᶜa γ) (ᶜb γ) (ᶜp γ))) == (ᶜp γ))
+      encode-decode' {A} {a} {b} p =
+        let♯ δ ::= (ctx' A a b p) in♯
+          ♯-=-retract (encode (ᶜa δ) (ᶜb δ) (decode (ᶜa δ) (ᶜb δ) (ᶜp δ))) (ᶜp δ)
+            (let♯ u ^♯:= (ᶜa δ) in♯
+               let♯ v ^♯:= (ᶜb δ) in♯
+                  let♯ q ^♯:= (ᶜp δ) in♯
+                     {!!}
+                   in-family (λ (p' :{♭} _) → encode (u ^♯) (v ^♯) (decode (u ^♯) (v ^♯) p') == p')
+                in-family (λ (b' :{♭} _) → encode (u ^♯) b' (decode (u ^♯) b' (ᶜp δ)) == ᶜp δ)
+             in-family (λ (a' :{♭} _) → encode a' (ᶜb δ) (decode a' (ᶜb δ) (ᶜp δ)) == ᶜp δ))
+        ^^♯-in-family (λ γ → ((encode (ᶜa γ) (ᶜb γ) (decode (ᶜa γ) (ᶜb γ) (ᶜp γ))) == (ᶜp γ)) )
+-}

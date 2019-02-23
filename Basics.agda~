@@ -1,0 +1,177 @@
+{-# OPTIONS --without-K #-}
+
+module Basics where
+
+  open import lib.Basics
+  open import lib.Funext
+  open import lib.NType2
+  open import lib.types.Truncation
+  open import lib.types.Bool
+
+  quodlibet : {i : ULevel} {A : Type i} → ⊥ → A
+  quodlibet = ⊥-elim
+
+  -- The "identity path" is called refl
+  -- refl : ∀ {i} { A : Type i} {a : A} → a == a
+  pattern refl = idp
+
+  _is-an-equiv = is-equiv
+
+  _is-an-equivalence-because_is-inverse-by_and_ : ∀ {i} {j} {A : Type i} {B : Type j}
+                                                  → (f : A → B)
+                                                    (g : B → A) (f-g : (b : B) → f (g b) == b)
+                                                    (g-f : (a : A) → g (f a) == a) → is-equiv f
+  f is-an-equivalence-because g is-inverse-by f-g and g-f = is-eq f g f-g g-f
+
+
+  _is-split-inj : {i j : ULevel} {A : Type i} {B : Type j} (s : A → B) → Type (lmax i j)
+  _is-split-inj {A = A} {B = B} s = Σ (B → A) (λ r → (a : A) → r (s a) == a) 
+  
+  -- Implicit and Explicit function types are equivalent
+
+  imp-equiv-exp : {i j : ULevel} {A : Type i} {B : A → Type j}
+                  → ({a : A} → B a) ≃ ((a : A) → B a)
+  imp-equiv-exp = (λ f x → f {x}) ,
+                    record
+                    { g = λ z {x} → z x
+                    ; f-g = λ b → idp
+                    ; g-f = λ a → idp
+                    ; adj = λ a → idp
+                    }
+
+  exp-equiv-imp : {i j : ULevel} {A : Type i} {B : A → Type j}
+                  → ((a : A) → B a) ≃ ({a : A} → B a)
+  exp-equiv-imp = imp-equiv-exp ⁻¹
+
+  _⊔→_ : {i j k l : ULevel} {A : Type i} {B : Type j} {C : Type k} {D : Type l}
+         (f : A → C) (g : B → D)
+         → A ⊔ B → C ⊔ D
+  (f ⊔→ g) (inl a)  = inl (f a)
+  (f ⊔→ g) (inr b)  = inr (g b)
+
+  _⊔e_ : {i j k l : ULevel} {A : Type i} {B : Type j} {C : Type k} {D : Type l}
+         (f : A ≃ C) (g : B ≃ D)
+         → A ⊔ B ≃ C ⊔ D
+  f ⊔e g =
+    equiv
+      ((–> f) ⊔→ (–> g))
+      ((<– f) ⊔→ (<– g))
+      (λ {(inl c) → ap inl ((<–-inv-r f) c) ; (inr d) → ap inr ((<–-inv-r g) d) })
+      (λ {(inl a) → ap inl ((<–-inv-l f) a) ; (inr b) → ap inr ((<–-inv-l g) b) })
+
+  -- Propositions
+  _is-contractible : {i : ULevel} (A : Type i) → Type i
+  _is-contractible = is-contr
+
+  ⊤-is-contr : ⊤ is-contractible
+  ⊤-is-contr = has-level-in (unit , (λ {unit → refl}))
+
+  contr-≃-⊤ : {i : ULevel} {A : Type i} (c : A is-contractible)
+              → A ≃ ⊤
+  contr-≃-⊤ {A = A} c =
+    equiv (λ _ → unit) (λ { unit → contr-center c })
+          (λ {unit → refl})
+          (λ a → contr-path c a)
+
+  _is-a-prop : ∀ {i} → (A : Type i)  → Type i
+  A is-a-prop = is-prop A
+
+  
+
+  Prop : (i : ULevel) → Type _
+  Prop = hProp 
+
+  Prop₀ = hProp₀
+
+ 
+
+  True : Prop₀
+  True = ⊤ , contr-is-prop ⊤-is-contr
+
+  False : Prop₀
+  False = ⊥ , has-level-in (λ x → quodlibet x)
+  
+  _And_ : ∀ {i j} → (A : Type i) (B : Type j) → Type (lmax i j)
+  A And B = Σ A (λ _ → B)
+
+  _And→_ : ∀ {i j k l} {A : Type i} {B : Type j} {C : Type k} {D : Type l}
+           (f : A → C) (g : B → D)
+           → (A And B) → (C And D)
+  f And→ g = λ { (a , b) → f a , g b }
+
+  mapping-into-prop-is-a-prop : {i j : ULevel} {A : Type i} {P : A → Type j}
+                                (f : (a : A) → ((P a) is-a-prop))
+                                → ((a : A) → P a) is-a-prop
+  mapping-into-prop-is-a-prop f = all-paths-is-prop (λ x y →
+                                    λ= (λ a → prop-path (f a) (x a) (y a)))
+
+  _holds : ∀ {i} (P : Prop i) → Type i
+  _holds = fst
+
+  _holds-is-a-prop : {i : ULevel} (P : Prop i) → (P holds) is-a-prop
+  _holds-is-a-prop = snd
+
+  ∥_∥ : ∀ {i} (A :  Type i) → Type i
+  ∥_∥ = Trunc -1
+
+  {- 
+    To say ``There exists an a : A such that B a", write
+      ∃ (λ (a : A) → B a)
+  -}
+  ∃ : {i j : ULevel} {A : Type i} (B : A → Type j) → Prop (lmax i j)
+  ∃ {_} {_} {A} B = ∥ (Σ A B) ∥ , ⟨⟩
+
+  _holds-implies-dec-eq : {i : ULevel} (P : Prop i)
+                          → P holds → (P holds) ≃ (Dec (P holds))
+  (P holds-implies-dec-eq) p  = equiv (λ _ → inl p)
+                                      ((λ { (inl q) → q ; (inr nq) → quodlibet (nq p) }))
+                                      (λ { (inl q) → ap inl (prop-path (P holds-is-a-prop) p q)
+                                         ; (inr nq) → quodlibet (nq p) })
+                                      (λ q → prop-path (P holds-is-a-prop) p q)
+
+  _holds-by_implies-=-True : (P : Prop₀) (p : P holds)
+                             → P == True
+  (P , q) holds-by p implies-=-True = pair= left-id right-id
+    where
+      left-id : P == ⊤
+      left-id = (ua {A = P} {B = True holds} (contr-≃-⊤ {A = P} (inhab-prop-is-contr p {{q}})))
+
+      right-id : q == (snd True) [ _is-a-prop ↓ left-id ]
+      right-id = from-transp _is-a-prop left-id
+                      (prop-path (has-level-is-prop) (transport _is-a-prop left-id q) (snd True) )
+
+  ¬-_holds-by_implies-=-False : (P : Prop₀) (p : ¬ (P holds))
+                                → P == False
+  ¬- (P , q) holds-by np implies-=-False = pair= left-id right-id
+    where
+      left-id : P == ⊥
+      left-id = ua {A = P} {B = False holds} e
+        where e : P ≃ ⊥
+              e = equiv np (λ ()) (λ ()) (λ p → quodlibet (np p))
+
+      right-id : q == (snd False) [ _is-a-prop ↓ left-id ]
+      right-id = from-transp _is-a-prop left-id
+                             (prop-path (has-level-is-prop) (transport _is-a-prop left-id q) (snd False))
+  
+  -- Sets
+  _is-a-set : {i : ULevel} (A : Type i) → Type i
+  A is-a-set = is-set A
+
+  -- To get an element a of the set A is to give a : ∈ A.
+  ∈ : {i : ULevel} (A : hSet i) → Type i
+  ∈ = fst
+
+  set-is-a-set : {i : ULevel} (A : hSet i) → (∈ A) is-a-set
+  set-is-a-set A = snd A
+
+  -- Equality for sets, landing in Prop
+  _==ₚ_ : {i : ULevel} {A : hSet i}
+          → (x y : ∈ A) → Prop i
+  _==ₚ_ {_} {A} x y = (x == y) , has-level-apply (set-is-a-set A) x y
+
+  _=bool=_ : {i : ULevel} {A : Type i} {p : has-dec-eq A}
+             → (x y : A) → Bool
+  _=bool=_ {p = p} x y  = case (p x y)
+    where case : Dec (x == y) → Bool
+          case (inl _) = true
+          case (inr _) = false

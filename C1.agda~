@@ -1,0 +1,123 @@
+{-# OPTIONS --without-K #-}
+
+open import lib.Basics
+
+module C1 {i₁ j₁ :{♭} ULevel}
+          (I :{♭} Type i₁)
+          (R :{♭} I → Type j₁)
+          (r₀ :{♭} (index : I) → R index) where
+  -- We assume the family R satisfies Axiom C0
+  open import Axiom.C0 {i₁} {j₁} I R
+  
+
+  open import Basics
+  open import Flat
+  open import Sharp
+  open import lib.types.Bool
+  open import Bool
+
+  open import lib.Equivalence2
+
+  _is-discrete-C0 : {i : ULevel} (A : Type i) → Type _
+  _is-discrete-C0 {i} A = (index : I) → (is-equiv {i = i} (λ (a : A) → (λ (r : R index) → a)))
+
+  discrete-C0-eq : {i : ULevel} {A : Type i} (p : A is-discrete-C0) (index : I)
+                   → A ≃ ((R index) → A)
+  discrete-C0-eq p index = _ , (p index)
+                   
+
+  prop-is-discrete-C0 : {i : ULevel} (P : Prop i) → (P holds) is-discrete-C0
+  prop-is-discrete-C0 P =
+    (λ index →
+      is-eq to
+            fro
+            (λ f → λ= (λ r → prop-path (P holds-is-a-prop) (f (r₀ index)) (f r)))
+            (λ p → prop-path (P holds-is-a-prop) (fro {index} (to p)) p))
+      where
+        to : {index : I} → P holds → (r : R index) → P holds
+        to = λ p _ → p
+
+        fro : {index : I} → ((r : R index) → P holds) → P holds
+        fro {index} = λ f → f (r₀ index)
+
+  crisp-prop-is-discrete : {i :{♭} ULevel} (P :{♭} Prop i) → (P holds) is-discrete
+  crisp-prop-is-discrete P = C0 (P holds) (prop-is-discrete-C0 P)
+
+  ⊥-is-discrete : ⊥ is-discrete
+  ⊥-is-discrete = crisp-prop-is-discrete False
+
+
+  Π-♭-C0 : {i j : ULevel} {A : Type i}
+           {B : A → Type j} (p : (a : A) → (B a) is-discrete-C0)
+           → ((a : A) → B a) is-discrete-C0
+  Π-♭-C0 {A = A} {B = B} p =
+    λ index → _ is-an-equivalence-because
+      (fro index) is-inverse-by
+        {!!} and {!!}
+    where
+      fro : (index : I) → ((R index) → (a : A) → B a) → (a : A) → B a
+      fro index f a = (<– (discrete-C0-eq (p a) index)) (λ r → f r a)
+  
+      to-fro : ∀ index b → (λ r → fro index b) == b
+      to-fro index b = λ= $
+        λ r → {!!}
+
+      fro-to : ∀ index a → (fro index (λ r → a)) == a
+      fro-to index a = {!!}
+  
+  crisp-prop-is-codiscrete : {i :{♭} ULevel} (P :{♭} Prop i) → (P holds) is-codiscrete
+  crisp-prop-is-codiscrete P =
+    (P holds) is-codiscrete-because
+      map₁ >> map₂ >> _↓♭ is-retract-by
+        (λ _ → prop-path (snd P) _ _)
+    where
+      map₁ : ♯ (P holds) → ♭ (♯ (P holds))
+      map₁ = <– (discrete-eq (crisp-prop-is-discrete (♯ₙ P)))
+      
+      map₂ : ♭ (♯ (P holds)) → ♭ (P holds)
+      map₂ = –> ♭♯-eq
+
+  ♭-commutes-with-¬ : {i :{♭} ULevel} {A :{♭} Type i} → ♭ (¬ A) ≃ ¬ (♭ A)
+  ♭-commutes-with-¬ {i = i} {A = A} =
+                    ♭ (¬ A)
+                  ≃⟨ ♭→e {A = ¬ A} {B = A → ♯ ⊥} lemma₁ ⟩
+                    ♭ (A → ♯ ⊥)
+                  ≃⟨ ♭♯-adjoint ⁻¹ ⟩
+                     ♭ (¬ (♭ A))
+                  ≃⟨ discrete-eq (crisp-prop-is-discrete (¬ (♭ A) , proof)) ⟩
+                     ¬ (♭ A)
+                  ≃∎
+    where
+      lemma₁ : (A → ⊥) ≃ (A → ♯ ⊥)-- ⊥ is codiscrete b/c it is crisp.
+      lemma₁ = post∘-equiv (codisc-eq (crisp-prop-is-codiscrete False))
+
+      proof : ¬ (♭ A) is-a-prop
+      proof = mapping-into-prop-is-a-prop (λ _ → False holds-is-a-prop)
+
+  -- I think this requires that all propositions are discrete, which follows from C1
+  open import Axiom.LEM
+
+  ♭Prop₀≃Bool : ♭ Prop₀ ≃ Bool
+  ♭Prop₀≃Bool = equiv to fro to-fro fro-to
+    where
+      to : ♭ Prop₀ → Bool
+      to (P ^♭) = Dec-Prop-to-Bool P (LEM P)
+
+      fro : Bool → ♭ Prop₀
+      fro = Bool-to-♭Prop₀
+
+      to-fro : (b : Bool) → to (fro b) == b
+      to-fro true = Dec-Prop-to-Bool-true-id True (LEM True) unit
+      to-fro false = Dec-Prop-to-Bool-false-id False (LEM False) quodlibet
+
+      fro-to : (P : ♭ Prop₀) → fro (to P) == P
+      fro-to (P ^♭) = case P (LEM P)
+        where
+          case₀♭ : (P :{♭} Prop₀) → ♭ (P holds) → fro (to (P ^♭)) == (P ^♭)
+          case₀♭ P (p ^♭) = (ap fro (Dec-Prop-to-Bool-true-id P (LEM P) p)) ∙ ! (♭-ap _^♭ (P holds-by p implies-=-True))
+
+          case₁♭ : (P :{♭} Prop₀) → ♭ (¬ (P holds)) → fro (to (P ^♭)) == (P ^♭)
+          case₁♭ P (np ^♭) = (ap fro (Dec-Prop-to-Bool-false-id P (LEM P) np)) ∙ ! (♭-ap _^♭ (¬- P holds-by np implies-=-False))
+
+          case : (P :{♭} Prop₀) → Dec (P holds) → fro (to (P ^♭)) == (P ^♭)
+          case P = {!!}
