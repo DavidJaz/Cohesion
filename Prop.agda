@@ -58,10 +58,12 @@ module Prop where
            (f : A → C) (g : B → D)
            → (A And B) → (C And D)
   f And→ g = λ { (a , b) → f a , g b }
-  
+
+  infixl 30 _∧_
   _∧_ : ∀ {i j} (P : Prop i) (Q : Prop j) → Prop (lmax i j)
   P ∧ Q = ((P holds) And (Q  holds)) , Σ-level (P holds-is-a-prop) (λ _ → Q holds-is-a-prop)
 
+  infixl 35 _∨_
   _∨_ : ∀ {i j} (P : Prop i) (Q : Prop j) → Prop (lmax i j)
   P ∨ Q = ∥ (P holds) ⊔ (Q holds) ∥ , ⟨⟩
 
@@ -84,6 +86,12 @@ module Prop where
   -}
   ∃ : {i j : ULevel} {A : Type i} (B : A → Type j) → Prop (lmax i j)
   ∃ {_} {_} {A} B = ∥ (Σ A B) ∥ , ⟨⟩
+
+  ∃ₚ : ∀ {i j} {A : Type i} (B : A → Prop j) → Prop (lmax i j)
+  ∃ₚ {A = A} B = ∃ λ (a : A) → (B a) holds
+
+  ∀ₚ : ∀ {i j} {A : Type i} (P : A → Prop j) → Prop (lmax i j)
+  ∀ₚ P = (∀ a → (P a) holds) , mapping-into-prop-is-a-prop (λ a → (P a) holds-is-a-prop)
 
   _holds-implies-dec-eq : {i : ULevel} (P : Prop i)
                           → P holds → (P holds) ≃ (Dec (P holds))

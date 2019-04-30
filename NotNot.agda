@@ -3,6 +3,12 @@
 module NotNot where
   open import Basics
 
+  open import lib.NType2
+
+  {-
+    The definitions here follow Penon's paper "Infinitesimaux et Intuitionisme".
+  -}
+
   -- Since double negation is always proposition valued, we just define it that way
   -- for convenience.
   ¬¬ : ∀ {i} (A : Type i) → Prop i
@@ -52,15 +58,52 @@ module NotNot where
         (λ npq → npq (p ∙ q))
 
   -- The "neighborhood" of a point of a type is the subtype of all its neighbors.
+  nbhd-prop : ∀ {i} {A} (a : A) → SubtypeProp A i
+  nbhd-prop a = (λ b → a ≈ b holds) , (λ b → a ≈ b holds-is-a-prop)
+
   nbhd : ∀ {i} {A : Type i} (a : A)
          → Type i
-  nbhd  {i} {A} a = Subtype nbhd-prop
-    where
-      nbhd-prop : SubtypeProp A i
-      nbhd-prop = (λ b → a ≈ b holds) , (λ b → a ≈ b holds-is-a-prop)
+  nbhd  {i} {A} a = Subtype (nbhd-prop a)
+      
 
-  -- The neighborhood bundle is the sum of all neighborhoods.
+  -- The total space neighborhood bundle is the sum of all neighborhoods.
   nbhd-space : ∀ {i} (A : Type i) → Type i
   nbhd-space A = Σ A \(a : A) → nbhd a
 
+  private -- We give the neighborhood space a nickname
+    N = nbhd-space
+
+  germ : ∀ {i j} {A : Type i} {B : Type j} -- The germ of
+         → (f : A → B) -- a function f
+         → (a : A) -- at a point a
+         → nbhd a → nbhd (f a) -- is a function of this type
+  germ f a (d , nnp) =
+    f d ,
+      (un¬¬ nnp -as- p -in
+        (λ ne → ne (ap f p))
+      in-family (λ _ → ¬ (f a == f d)))
+
+  chain-rule : ∀ {i j k} {A : Type i} {B : Type j} {C : Type k}
+                       {f : A → B} {g : B → C} (a : A)
+                       → germ (g ∘ f) a == (germ g (f a)) ∘ (germ f a)
+  chain-rule {f = f} {g = g} a =
+    λ= $ λ {(d , p) →
+      Subtype=-out (nbhd-prop (g (f a))) -- It suffices to prove the first terms are equal,
+        refl -- which they are judgementally.
+    }
   
+  -- A map is etale if all its germs are equivalences.
+  _is-etale : ∀ {i j} {A : Type i} {B : Type j}
+          (f : A → B) → Type (lmax i j)
+  f is-etale = ∀ a → (germ f a) is-an-equiv
+
+  {- Some universe level error
+  ∘-is-etale : ∀ {i j k} {A : Type i} {B : Type j} {C : Type k}
+               {f : A → B} {g : B → C}
+               (p : f is-etale) (q : g is-etale)
+               → (g ∘ f) is-etale
+  ∘-is-etale {i}{j}{k}{A}{B}{C} {f = f} {g = g} p q =
+    λ a →     transport (λ (φ : nbhd a → nbhd (g (f (a)))) → φ is-an-equiv)
+      {x = (germ g (f a)) ∘ (germ f a)} {y = germ (g ∘ f) a}
+      (chain-rule a) (((q (f a)) ∘ise (p a)) ) 
+  -}

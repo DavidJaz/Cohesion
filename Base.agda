@@ -15,6 +15,11 @@ module Base where
         (a : A) (f : (a : A) → B a) → B a
   a |> f = f a
 
+  _at_ : ∀ {i j} {A : Type i} {P : A → Type j} {f g : Π A P} (p : f == g) → f ∼ g
+  p at x = app= p x
+
+  End : ∀ {i} (X : Type i) → Type i
+  End X = X → X
 
   infixl 80 _>>_
   _>>_ : ∀ {i j k} {A : Type i} {B : A → Type j} {C : (a : A) → (B a → Type k)}
@@ -132,3 +137,33 @@ module Base where
 
   _→∎ : ∀ {i} (A : Type i) → A → A
   _→∎ = idf
+
+{-
+  -- SKETCHING
+  lemma : ∀ {i j} (A : Type i) (B : Type j) (a₀ : A)
+          (p : (f : A → B) (a : A) → (f a₀) == (f a))
+          → (const {A = A} {B = B}) is-an-equiv
+  lemma A B a₀ p = is-eq const (λ f → f a₀) fro-to to-fro
+    where
+      to-fro : ∀ a → ((const a) a₀) == a
+      to-fro a = refl
+
+      fro-to : ∀ (f : A → B) → (const (f a₀)) == f
+      fro-to f =
+        λ= $
+          λ a → p f a
+
+  module _ {i j} (R : Type i) (r₀ : R) (B : Type j) (S : Type j)  where
+    postulate
+      σ : B → S
+      contr : (γ : R → S) (r : R) → (γ r₀) == (γ r)
+
+    _is-discrete : ∀ {k} (X : Type k) → Type _
+    X is-discrete = (const {A = R} {B = X}) is-an-equiv
+    
+
+    S-is-discrete : S is-discrete
+    S-is-discrete = lemma R S r₀ contr
+
+    
+-}

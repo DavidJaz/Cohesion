@@ -11,6 +11,7 @@ module Flat where
   open import lib.types.Suspension
   open import lib.types.IteratedSuspension
   open import lib.types.Pushout as Pushout
+  open import lib.types.Truncation
 
   
 
@@ -221,6 +222,20 @@ module Flat where
   ♭ₙ : {i :{♭} ULevel} {n :{♭} ℕ₋₂}
        → (A :{♭} n -Type i) → (n -Type i)
   ♭ₙ A = (♭ (fst A)) , ♭-preserves-level (snd A)
+
+  
+  ♭-Trunc-map : {i :{♭} ULevel} {n :{♭} ℕ₋₂} (X :{♭} Type i)
+             → (Trunc n (♭ X)) → ♭ (Trunc n X)
+  ♭-Trunc-map X =
+    Trunc-elim {{p = λ _ → ♭-preserves-level Trunc-level}}
+      (λ { (a ^♭) → [ a ] ^♭ })
+
+  -- Until ♯ works we have to postulate this.
+  ♭-Trunc-eq : {i :{♭} ULevel} {n :{♭} ℕ₋₂} (X :{♭} Type i)
+             → (Trunc n (♭ X)) ≃ ♭ (Trunc n X)
+  ♭-Trunc-eq X = (♭-Trunc-map X) , unproven
+    where
+      postulate unproven : (♭-Trunc-map X) is-an-equiv
 
   ⊤-is-discrete : ⊤ is-discrete
   ⊤-is-discrete = _↓♭ is-an-equivalence-because

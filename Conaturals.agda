@@ -7,7 +7,7 @@ module Conaturals where
   open import lib.types.Nat
   open import lib.types.Bool
 
-  
+  {-
 
   _is-increasing-b : (ℕ → Bool) → Type _
   P is-increasing-b = (n m : ℕ) → n ≤ m → (P n) holds-b → (P m) holds-b
@@ -23,9 +23,9 @@ module Conaturals where
   ℕ∞ : Type₀
   ℕ∞ = Subtype ℕ∞-prop
 
+  -}
   
-  
-  {- I'm having trouble using coinduction =[ 
+  -- I'm having trouble using coinduction =[ 
   -- The type of conatural numbers
   record ℕ∞ : Type₀ where
     coinductive
@@ -42,7 +42,7 @@ module Conaturals where
   pred∞ co∞ = go∞ co∞
 
   suc∞ : ℕ∞ → ℕ∞
-  pred∞ (suc∞ x) = inl x
+  pred∞ (suc∞ x) = go∞ x
 
   instance
     ℕ-to-ℕ∞ : ℕ → ℕ∞
@@ -86,5 +86,3 @@ module Conaturals where
         helperS (go∞ pn) O = {!!}
         helperS (go∞ pn) (S k) = {!!}
         helperS stop∞ k = true -}
-
-  -}

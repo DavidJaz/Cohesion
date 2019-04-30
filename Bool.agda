@@ -3,7 +3,7 @@
 module Bool where
   open import Basics
   open import lib.Basics
-  open import lib.types.Bool
+  open import lib.types.Bool public
 
   _≤b_ : Bool → Bool → Prop₀
   true ≤b true = True

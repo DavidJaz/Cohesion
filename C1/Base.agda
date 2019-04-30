@@ -89,6 +89,16 @@ module C1.Base
       map₂ : ♭ (♯ (P holds)) → ♭ (P holds)
       map₂ = –> ♭♯-eq
 
+  ¬-is-codiscrete : ∀ {i} (A : Type i) → (¬ A) is-codiscrete
+  ¬-is-codiscrete {i} A = -- mapping into a codiscrete is codiscrete.
+    replete (Π-codisc {A = A} (λ _ → ⊥)) (lemma₁ ⁻¹)
+    where
+      lemma₁ : (A → ⊥) ≃ (A → ♯ ⊥)-- ⊥ is codiscrete b/c it is crisp.
+      lemma₁ = post∘-equiv (codisc-eq (crisp-prop-is-codiscrete False))
+
+      open import lib.types.Modality
+      replete = (Modality.local-is-replete {i}) ♯-modality
+
   ♭-commutes-with-¬ : {i :{♭} ULevel} {A :{♭} Type i} → ♭ (¬ A) ≃ ¬ (♭ A)
   ♭-commutes-with-¬ {i = i} {A = A} =
                     ♭ (¬ A)

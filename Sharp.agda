@@ -142,10 +142,18 @@ module Sharp where
       We take this sameness to be a judgemental equality, implemented as a rewrite rule.
     -}
 
+    ♯-law' : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
+             (A : Γ → Type j) (x : Γ)
+             → (♯-ptwise A) x ↦ ♯ (A x)
+    {-# REWRITE ♯-law' #-}
+
+{-
     ♯-law : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
              (A : Γ ::→ Type j) (x :{♭} Γ)
              → (♯-ptwise A) x ↦ ♯ (A x)
     {-# REWRITE ♯-law #-}
+-}
+    
 
     ^♯-law : {i :{♭} ULevel} {Γ :{♭} Type i} {j : ULevel}
               {A : Γ ::→ Type j} (a : (x :{♭} Γ) → A x)
@@ -337,6 +345,22 @@ module Sharp where
          -- fro-to : ∀ a → fro (a ^♯) == a
          -- fro-to = {!!}
     -}
+
+  module _ {i j :{♭} ULevel} where
+    record CTX-uncrisp {A :{♭} Type i} : Type (lsucc (lmax i j)) where
+      constructor ctx
+      field
+        ᶜB : A → Type j
+        ᶜf : (a :{♭} A) → ♯ (ᶜB a)
+        ᶜa : A
+        
+    uncrisp : {A :{♭} Type i} (B : A → Type j)
+              → ((a :{♭} A) → ♯ (B a))
+              → ((a : A) → ♯ (B a))
+    uncrisp B f a =
+      let♯ γ ::= (ctx B f a) in♯
+        (((ᶜf γ) (ᶜa γ)) ↓♯) ^^♯
+      where open CTX-uncrisp
 
   Π-codisc : {i j : ULevel} {A : Type i} (B : A → Type j)
                  → ((a : A) → ♯ (B a)) is-codiscrete
